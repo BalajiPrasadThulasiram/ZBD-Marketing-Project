@@ -1,0 +1,65 @@
+#To Find the CAC and ROAS report.
+USE zebedee;
+SELECT 
+    spend_by_week.year_week,
+    spend_by_week.media_channel,
+    spend_by_week.operating_system,
+    spend_by_week.total_spend,
+    installs_by_week.users_acquired,
+    #Formulas for CAC and ROAS.
+    ROUND(spend_by_week.total_spend / NULLIF(installs_by_week.users_acquired, 0), 2) AS CAC,
+    ROUND(installs_by_week.revenue_generated / NULLIF(spend_by_week.total_spend, 0), 2) AS ROAS
+FROM (
+SELECT 
+YEARWEEK(install_date, 3) AS year_week,
+        media_channel,
+        operating_system,
+        COUNT(DISTINCT mapped_users.user_id) AS users_acquired,
+        SUM(revenue_by_user.total_revenue) AS revenue_generated
+FROM(
+SELECT 
+           union_installs.install_date,
+           union_installs.media_channel,
+           union_installs.operating_system,
+           m.id AS user_id
+ FROM (
+ #Incorporate the installs_google and installs_rest tables 1 .     
+SELECT DATE(STR_TO_DATE(install_time,'%M %d,%Y')) AS install_date,
+           media_channel,
+           operating_system,
+           visitor_id
+    FROM installs_google
+    UNION ALL
+    SELECT DATE(STR_TO_DATE(install_time,'%M %d,%Y')) AS install_date, media_channel, operating_system, visitor_id
+    FROM installs_rest
+)union_installs
+INNER JOIN mapping m 
+ON union_installs.visitor_id = m.vst_id
+#Inner Joined with Mapping to get the User Id from mapping tables.
+
+)mapped_users
+   
+LEFT JOIN (
+SELECT user_id,
+SUM(cast(revenue as decimal(12,2)) ) AS total_revenue
+FROM revenues
+GROUP BY user_id
+)revenue_by_user
+ON mapped_users.user_id = revenue_by_user.user_id
+GROUP BY YEARWEEK(install_date, 3), media_channel, operating_system
+)installs_by_week
+
+INNER JOIN (
+SELECT 
+YEARWEEK(STR_TO_DATE(date,'%M %d,%Y'), 3) AS year_week,
+media_channel,
+operating_system,
+SUM(spend) AS total_spend
+FROM costs
+GROUP BY YEARWEEK(STR_TO_DATE(date,'%M %d,%Y'), 3), media_channel, operating_system
+) spend_by_week 
+  ON spend_by_week.year_week = installs_by_week.year_week
+ AND spend_by_week.media_channel = installs_by_week.media_channel
+ AND spend_by_week.operating_system = installs_by_week.operating_system
+ 
+ #Google and Rest is getting Unioned, which is being inner joined by vst_id into the mapping table. To find the revenue, we sum of revenue by user ID, all these inputs will again be inner joined into the cost tables to get the total spent for each media channel using the particular formulaes.

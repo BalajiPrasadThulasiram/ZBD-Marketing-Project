@@ -1,0 +1,36 @@
+USE zebedee;
+###TABLE NAME TBL_USR_LVL_TIER
+drop table TBL_USR_LVL_TIER;
+
+create table TBL_USR_LVL_TIER
+as
+SELECT 
+    visitorid,
+    total_ltv,
+    CASE 
+        WHEN ltv_rank = 1 THEN 'Low'
+        WHEN ltv_rank = 2 THEN 'Medium'
+        WHEN ltv_rank = 3 THEN 'High'
+    END AS ltv_tier
+ #select *
+FROM (
+
+        SELECT
+        visitorid,
+        total_ltv,
+        NTILE(3) OVER (ORDER BY total_ltv) AS ltv_rank
+        #######NTILE function partitioned the value based on our data, as we called (3) with NTILE, it splitted the values into 3 tiers.
+FROM ( 
+SELECT
+        m.vst_id as visitorid,
+        SUM(CAST(REPLACE(revenue, ',', '') AS DECIMAL(12,2))) AS total_ltv
+        #SUM(r.revenue) AS total_ltv
+        #######Joining the revenue table with mapping to get the tier values.
+    FROM revenues r
+    INNER JOIN mapping m ON r.user_id = m.id
+    GROUP BY m.vst_id
+)user_ltv
+) ltv_tiers
+;
+#By using the revenue table to get the total revenue values, then inner joining the mapping table by user_id, then we partitioned the tier values based on requirement using the NTILE function.
+

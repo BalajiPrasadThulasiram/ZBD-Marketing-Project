@@ -1,0 +1,29 @@
+USE zebedee;
+SELECT
+        visitor_id,
+        DATE(install_time) AS reactivation_date,
+        media_channel
+        #,prev_install
+FROM 
+( #In this query, we are using the LAG Function to analyze the pre-installation to identify the re-activation date after 30 days as given by the instructions
+    SELECT
+        visitor_id,
+        install_time,
+        media_channel,
+        LAG(install_time) OVER (PARTITION BY visitor_id ORDER BY install_time) AS prev_install
+ FROM 
+( #We are applying UNION ALL between installs_google and install_rest 
+    SELECT visitor_id, media_channel, STR_TO_DATE(install_time,'%M %d,%Y') AS install_time
+    FROM installs_google
+    UNION ALL
+    SELECT visitor_id, media_channel, STR_TO_DATE(install_time,'%M %d,%Y') AS install_time
+    FROM installs_rest
+
+) all_installs
+)  reactivated_users
+  WHERE prev_install IS NOT NULL
+
+AND install_time > prev_install + INTERVAL 30 DAY
+
+
+#We did this query, to identify the re-activation users based on their installation timeframe after 30 days as instructed in the problem statement.

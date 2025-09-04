@@ -1,0 +1,20 @@
+###Media_chnl_hgh_LTV_urs
+
+##CREATE TABLE Media_chnl_hgh_LTV_urs
+##AS
+SELECT
+all_media_sources.media_channel,
+        LTV.ltv_tier,
+        COUNT(DISTINCT all_media_sources.visitor_id) AS user_count
+FROM 
+( #Applying UNION all BETWEEN installs_google AND installs_rest and Inner joining it with the tbl_usr_lvl_tier (which we used in our previous query)
+SELECT visitor_id, media_channel FROM installs_google
+UNION ALL
+SELECT visitor_id, media_channel FROM installs_rest
+) all_media_sources
+INNER JOIN TBL_USR_LVL_TIER LTV #here user level LTV
+ON all_media_sources.visitor_id = LTV.visitorid
+GROUP BY all_media_sources.media_channel, LTV.ltv_tier
+ORDER BY media_channel, ltv_tier;
+
+#Based on the above combinations and neccessary joins we are getting the user count along with the media channel with the LTV tier which we achieved in our previous query.
